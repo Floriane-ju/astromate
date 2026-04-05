@@ -130,6 +130,9 @@ async function initGPS() {
                            + `${state.lon.toFixed(2)}° ${state.lon >= 0 ? 'E' : 'O'}`;
         document.getElementById('location-text').textContent = state.locationName;
         document.getElementById('location-icon').style.color = '#c0392b';
+        // Cacher le message d'erreur si GPS a finalement répondu
+        document.getElementById('gps-error').classList.add('hidden');
+        state.lastFrameTime = 0; // force recalcul avec la vraie position
         resolve();
       },
       () => { showGPSError(); resolve(); },

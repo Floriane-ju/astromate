@@ -315,9 +315,6 @@ export class SkyRenderer {
       ctx.save();
 
       // Halo de luminosité selon magnitude
-      const glowSize = sizeR * 1.5;
-      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowSize);
-      glow.addColorStop(0, style.color.replace(')', ', 0.15)').replace('#', 'rgba(').replace(/([0-9a-f]{2})/gi, (_,h) => parseInt(h,16)+',').replace(/,$/, ')'));
 
       // Cercle de taille représentant l'objet
       ctx.beginPath();

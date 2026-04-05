@@ -446,6 +446,8 @@ html, body {
   text-align: center;
 }
 
+#gps-error.hidden { display: none; }
+
 #gps-error p { margin-bottom: 0.3rem; }
 
 #gps-retry {
