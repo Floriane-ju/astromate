@@ -23,7 +23,7 @@ const state = {
   viewAlt:  45,   // à 45° de hauteur
   fovDeg:   90,   // champ de vision horizontal
   fovMin:    8,
-  fovMax:  130,
+  fovMax:  170,
 
   // Catalogues
   allStars:       [],
