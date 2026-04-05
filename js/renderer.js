@@ -80,7 +80,7 @@ export class SkyRenderer {
       const az = ((viewAz + daz) % 360 + 360) % 360;
       const p  = project(az, 0, this.cx, this.cy, this.width, viewAz, viewAlt, fovDeg);
       // Garder les points proches de l'écran (pas les extremes qui partent à l'infini)
-      if (p && p.x > -300 && p.x < this.width + 300 && p.y < this.height + 400) {
+      if (p && p.x > -300 && p.x < this.width + 300 && p.y < this.height + 5) {
         pts.push({ x: p.x, y: p.y });
       }
     }
