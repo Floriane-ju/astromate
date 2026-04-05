@@ -66,62 +66,84 @@ export class SkyRenderer {
    * On projette 2 points bien séparés en azimut pour déterminer la pente,
    * puis on extrapole jusqu'aux bords du canvas — même si l'horizon est hors-écran.
    */
+  /**
+   * Horizon courbé — projection stéréographique.
+   * L'horizon (grand cercle) se projette en arc de cercle concave vers le haut,
+   * exactement comme dans Stellarium.
+   * On projette alt=0 tous les 2° d'azimut (front hémisphère ±88°).
+   */
   drawLandscape(viewAz, viewAlt, fovDeg) {
     const ctx = this.ctx;
+    const pts = [];
 
-    // L'horizon (alt=0) est un grand cercle → ligne droite en projection gnomonique.
-    // On calcule sa position en projetant le point directement en face (az=viewAz, alt=0).
-    // y_horizon = cy + f * tan(viewAlt)  (formule exacte quand Δλ=0)
-    const f = (this.width / 2) / Math.tan((fovDeg / 2) * Math.PI / 180);
-    const yHorizon = this.cy + f * Math.tan(viewAlt * Math.PI / 180);
+    for (let daz = -88; daz <= 88; daz += 2) {
+      const az = ((viewAz + daz) % 360 + 360) % 360;
+      const p  = project(az, 0, this.cx, this.cy, this.width, viewAz, viewAlt, fovDeg);
+      // Garder les points proches de l'écran (pas les extremes qui partent à l'infini)
+      if (p && p.x > -300 && p.x < this.width + 300 && p.y < this.height + 400) {
+        pts.push({ x: p.x, y: p.y });
+      }
+    }
 
-    // Cas : horizon hors-écran en bas (on regarde trop haut)
-    if (yHorizon > this.height + 5) {
-      // Juste une très légère lueur au ras du bas pour indiquer l'horizon
-      const g = ctx.createLinearGradient(0, this.height - 50, 0, this.height);
+    // Trier par x pour parcourir la courbe de gauche à droite
+    pts.sort((a, b) => a.x - b.x);
+
+    // ── Cas : horizon entièrement hors-écran en bas (on regarde très haut)
+    if (pts.length === 0 || pts.every(p => p.y > this.height + 5)) {
+      const g = ctx.createLinearGradient(0, this.height - 60, 0, this.height);
       g.addColorStop(0, 'transparent');
       g.addColorStop(1, 'rgba(60,15,5,0.5)');
       ctx.fillStyle = g;
-      ctx.fillRect(0, this.height - 50, this.width, 50);
+      ctx.fillRect(0, this.height - 60, this.width, 60);
       return;
     }
 
-    // Cas : horizon hors-écran en haut (on regarde vers le bas, tout est sol)
-    if (yHorizon < -5) {
+    // ── Cas : horizon hors-écran en haut (on regarde vers le sol)
+    if (pts.length > 0 && pts.every(p => p.y < -5)) {
       ctx.fillStyle = COLORS.ground;
       ctx.fillRect(0, 0, this.width, this.height);
       return;
     }
 
-    // ─ Sol
-    ctx.fillStyle = COLORS.ground;
-    ctx.fillRect(0, yHorizon, this.width, this.height - yHorizon);
-
-    // ─ Lueur atmosphérique
-    const glowGrad = ctx.createLinearGradient(0, yHorizon - 60, 0, yHorizon + 20);
-    glowGrad.addColorStop(0,   'transparent');
-    glowGrad.addColorStop(0.6, COLORS.horizonGlow);
-    glowGrad.addColorStop(1,   'transparent');
-    ctx.fillStyle = glowGrad;
-    ctx.fillRect(0, yHorizon - 60, this.width, 80);
-
-    // ─ Ligne d'horizon
+    // ── Remplissage du sol sous la courbe d'horizon
     ctx.beginPath();
-    ctx.moveTo(0,          yHorizon);
-    ctx.lineTo(this.width, yHorizon);
+    ctx.moveTo(-10, this.height + 10);         // coin bas-gauche
+    ctx.lineTo(-10, pts[0].y);                 // monter jusqu'à la courbe côté gauche
+    for (const p of pts) ctx.lineTo(p.x, p.y); // suivre la courbe
+    ctx.lineTo(this.width + 10, pts[pts.length - 1].y); // descendre côté droit
+    ctx.lineTo(this.width + 10, this.height + 10);       // coin bas-droit
+    ctx.closePath();
+    ctx.fillStyle = COLORS.ground;
+    ctx.fill();
+
+    // ── Lueur atmosphérique le long de la courbe
+    const midY = pts[Math.floor(pts.length / 2)]?.y ?? this.cy;
+    const glow = ctx.createLinearGradient(0, midY - 70, 0, midY + 25);
+    glow.addColorStop(0,   'transparent');
+    glow.addColorStop(0.6, COLORS.horizonGlow);
+    glow.addColorStop(1,   'transparent');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, midY - 70, this.width, 95);
+
+    // ── Ligne d'horizon (courbe)
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
     ctx.strokeStyle = COLORS.horizonLine;
     ctx.lineWidth = 1;
     ctx.stroke();
   }
 
   /**
-   * Calcule le viewAlt par défaut pour que l'horizon apparaisse
-   * à ~80% de la hauteur écran (20% de sol visible).
+   * viewAlt par défaut : l'horizon apparaît à ~80% de la hauteur écran.
+   * En stéréographique : y_horizon = cy + 2f·tan(viewAlt/2)
+   * → viewAlt = 2·arctan((0.8·h - cy) / (2f))
    */
   defaultViewAlt(fovDeg) {
-    const f  = (this.width / 2) / Math.tan((fovDeg / 2) * Math.PI / 180);
-    const dy = this.height * 0.80 - this.cy;   // distance centre → 80% hauteur
-    return Math.max(5, Math.min(70, Math.atan(dy / f) * 180 / Math.PI));
+    const f  = (this.width / 2) / (2 * Math.tan((fovDeg / 4) * Math.PI / 180));
+    const dy = this.height * 0.80 - this.cy;  // = 0.3 * height
+    const viewAlt = 2 * Math.atan(dy / (2 * f)) * 180 / Math.PI;
+    return Math.max(5, Math.min(70, viewAlt));
   }
 
   // ── Grille ────────────────────────────────────────────────────────────────────
