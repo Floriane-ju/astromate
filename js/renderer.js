@@ -76,13 +76,12 @@ export class SkyRenderer {
     const ctx = this.ctx;
     const pts = [];
 
-    // Échantillonner ±179° d'azimut pour que la courbe atteigne les bords du canvas
-    // même à grand champ (FOV élevé). Les points hors-écran en x sont autorisés
-    // pour éviter les segments horizontaux parasites dans le path de remplissage.
-    for (let daz = -179; daz <= 179; daz += 2) {
+    // Hémisphère avant uniquement (±88°), filtre x élargi pour que les points
+    // extrêmes tombent hors-écran même à FOV modéré (évite les segments horizontaux).
+    for (let daz = -88; daz <= 88; daz += 2) {
       const az = ((viewAz + daz) % 360 + 360) % 360;
       const p  = project(az, 0, this.cx, this.cy, this.width, viewAz, viewAlt, fovDeg);
-      if (p && p.x > -this.width * 2 && p.x < this.width * 3 && p.y < this.height + 5) {
+      if (p && p.x > -this.width && p.x < this.width * 2 && p.y < this.height + 5) {
         pts.push({ x: p.x, y: p.y });
       }
     }
@@ -107,13 +106,33 @@ export class SkyRenderer {
       return;
     }
 
+    // ── Extrapoler la courbe jusqu'aux bords du canvas pour éliminer
+    //    les segments horizontaux parasites dans le path de remplissage.
+    //    (À grand FOV la courbe peut ne pas atteindre les bords.)
+    if (pts.length >= 2 && pts[0].x > -10) {
+      const dx = pts[1].x - pts[0].x;
+      if (dx > 0.5) {
+        const slope = (pts[1].y - pts[0].y) / dx;
+        pts.unshift({ x: -10, y: pts[0].y + slope * (-10 - pts[0].x) });
+      }
+    }
+    if (pts.length >= 2 && pts[pts.length - 1].x < this.width + 10) {
+      const n = pts.length;
+      const dx = pts[n - 1].x - pts[n - 2].x;
+      if (dx > 0.5) {
+        const slope = (pts[n - 1].y - pts[n - 2].y) / dx;
+        pts.push({ x: this.width + 10, y: pts[n - 1].y + slope * (this.width + 10 - pts[n - 1].x) });
+      }
+    }
+
     // ── Remplissage du sol sous la courbe d'horizon
-    // On part du bas sous pts[0] et on descend sous pts[last] pour éviter
-    // tout segment horizontal parasite au niveau de pts[0].y / pts[last].y.
+    // pts[0].x ≤ -10 et pts[last].x ≥ width+10 → les segments horizontaux sont hors-écran.
     ctx.beginPath();
-    ctx.moveTo(pts[0].x, this.height + 10);    // bas sous le premier point
-    for (const p of pts) ctx.lineTo(p.x, p.y); // suivre la courbe
-    ctx.lineTo(pts[pts.length - 1].x, this.height + 10); // bas sous le dernier point
+    ctx.moveTo(-10, this.height + 10);
+    ctx.lineTo(-10, pts[0].y);
+    for (const p of pts) ctx.lineTo(p.x, p.y);
+    ctx.lineTo(this.width + 10, pts[pts.length - 1].y);
+    ctx.lineTo(this.width + 10, this.height + 10);
     ctx.closePath();
     ctx.fillStyle = COLORS.ground;
     ctx.fill();
