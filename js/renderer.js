@@ -69,63 +69,59 @@ export class SkyRenderer {
   drawLandscape(viewAz, viewAlt, fovDeg) {
     const ctx = this.ctx;
 
-    // 2 points sur l'horizon à 90° de part et d'autre de la direction de visée
-    const pL = project((viewAz - 85 + 360) % 360, 0, this.cx, this.cy, this.width, viewAz, viewAlt, fovDeg);
-    const pR = project((viewAz + 85)        % 360, 0, this.cx, this.cy, this.width, viewAz, viewAlt, fovDeg);
+    // L'horizon (alt=0) est un grand cercle → ligne droite en projection gnomonique.
+    // On calcule sa position en projetant le point directement en face (az=viewAz, alt=0).
+    // y_horizon = cy + f * tan(viewAlt)  (formule exacte quand Δλ=0)
+    const f = (this.width / 2) / Math.tan((fovDeg / 2) * Math.PI / 180);
+    const yHorizon = this.cy + f * Math.tan(viewAlt * Math.PI / 180);
 
-    // Si les deux points sont derrière le spectateur, l'horizon n'est pas visible
-    if (!pL && !pR) return;
-
-    // Calcul de la droite y = a*x + b passant par les points disponibles
-    let yLeft, yRight;
-
-    if (pL && pR) {
-      // Cas normal : 2 points → pente exacte
-      const slope = (pR.y - pL.y) / (pR.x - pL.x || 1);
-      yLeft  = pL.y - pL.x * slope;           // x=0
-      yRight = pR.y + (this.width - pR.x) * slope; // x=width
-    } else {
-      // Un seul point visible (vue très rasante) → horizon horizontal au y connu
-      const p = pL || pR;
-      yLeft  = p.y;
-      yRight = p.y;
+    // Cas : horizon hors-écran en bas (on regarde trop haut)
+    if (yHorizon > this.height + 5) {
+      // Juste une très légère lueur au ras du bas pour indiquer l'horizon
+      const g = ctx.createLinearGradient(0, this.height - 50, 0, this.height);
+      g.addColorStop(0, 'transparent');
+      g.addColorStop(1, 'rgba(60,15,5,0.5)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, this.height - 50, this.width, 50);
+      return;
     }
 
-    // Si l'horizon est entièrement au-dessus de l'écran → tout est sol, ça ne devrait pas arriver
-    // Si l'horizon est entièrement en-dessous → pas de sol à dessiner
-    if (yLeft > this.height + 200 && yRight > this.height + 200) return;
+    // Cas : horizon hors-écran en haut (on regarde vers le bas, tout est sol)
+    if (yHorizon < -5) {
+      ctx.fillStyle = COLORS.ground;
+      ctx.fillRect(0, 0, this.width, this.height);
+      return;
+    }
 
-    // Clamp pour ne pas dessiner des milliers de pixels hors-écran
-    const clamp = (v) => Math.max(-50, Math.min(this.height + 50, v));
-    yLeft  = clamp(yLeft);
-    yRight = clamp(yRight);
-
-    // ─ Sol (zone sous la ligne d'horizon)
-    ctx.beginPath();
-    ctx.moveTo(0,          this.height + 10);
-    ctx.lineTo(0,          yLeft);
-    ctx.lineTo(this.width, yRight);
-    ctx.lineTo(this.width, this.height + 10);
-    ctx.closePath();
+    // ─ Sol
     ctx.fillStyle = COLORS.ground;
-    ctx.fill();
+    ctx.fillRect(0, yHorizon, this.width, this.height - yHorizon);
 
-    // ─ Lueur atmosphérique au niveau de l'horizon
-    const horizonMidY = (yLeft + yRight) / 2;
-    const glowGrad = ctx.createLinearGradient(0, horizonMidY - 60, 0, horizonMidY + 20);
+    // ─ Lueur atmosphérique
+    const glowGrad = ctx.createLinearGradient(0, yHorizon - 60, 0, yHorizon + 20);
     glowGrad.addColorStop(0,   'transparent');
     glowGrad.addColorStop(0.6, COLORS.horizonGlow);
     glowGrad.addColorStop(1,   'transparent');
     ctx.fillStyle = glowGrad;
-    ctx.fillRect(0, horizonMidY - 60, this.width, 80);
+    ctx.fillRect(0, yHorizon - 60, this.width, 80);
 
     // ─ Ligne d'horizon
     ctx.beginPath();
-    ctx.moveTo(0,          yLeft);
-    ctx.lineTo(this.width, yRight);
+    ctx.moveTo(0,          yHorizon);
+    ctx.lineTo(this.width, yHorizon);
     ctx.strokeStyle = COLORS.horizonLine;
     ctx.lineWidth = 1;
     ctx.stroke();
+  }
+
+  /**
+   * Calcule le viewAlt par défaut pour que l'horizon apparaisse
+   * à ~80% de la hauteur écran (20% de sol visible).
+   */
+  defaultViewAlt(fovDeg) {
+    const f  = (this.width / 2) / Math.tan((fovDeg / 2) * Math.PI / 180);
+    const dy = this.height * 0.80 - this.cy;   // distance centre → 80% hauteur
+    return Math.max(5, Math.min(70, Math.atan(dy / f) * 180 / Math.PI));
   }
 
   // ── Grille ────────────────────────────────────────────────────────────────────

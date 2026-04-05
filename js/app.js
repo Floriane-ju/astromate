@@ -20,7 +20,7 @@ const state = {
 
   // Direction de vue (caméra)
   viewAz:  180,   // regarder vers le Sud par défaut
-  viewAlt:  30,   // à 30° — horizon visible en bas de l'écran
+  viewAlt:  30,   // sera recalculé dynamiquement après resize()
   fovDeg:   90,   // champ de vision horizontal
   fovMin:    8,
   fovMax:  170,
@@ -64,6 +64,7 @@ const renderer = new SkyRenderer(canvas);
 
 async function init() {
   renderer.resize();
+  state.viewAlt = renderer.defaultViewAlt(state.fovDeg);
   updateProgress('Catalogue stellaire…', 20);
 
   const catalog = await loadCatalog((label, pct) => updateProgress(label, pct));
@@ -311,8 +312,8 @@ function adjustFov(factor) {
 
 function resetView() {
   state.viewAz  = 180;
-  state.viewAlt = 30;
   state.fovDeg  = 90;
+  state.viewAlt = renderer.defaultViewAlt(state.fovDeg);
 }
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
