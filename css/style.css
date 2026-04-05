@@ -149,6 +149,13 @@ html, body {
   font-size: 0.9rem;
 }
 
+#version-badge {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  margin-right: 0.5rem;
+}
+
 #time-display {
   font-size: 0.85rem;
   color: var(--text-primary);
