@@ -1,0 +1,496 @@
+/* =============================================
+   AstroMate — Thème nuit (rouge/noir)
+   Conçu pour préserver la vision nocturne
+   ============================================= */
+
+:root {
+  --night-red: #c0392b;
+  --night-red-dim: #7a1a10;
+  --night-red-bright: #e74c3c;
+  --bg-deep: #000000;
+  --bg-panel: #0d0005;
+  --bg-panel-border: #2a0a0a;
+  --text-primary: #cc3322;
+  --text-secondary: #882211;
+  --text-dim: #551100;
+  --star-white: #ffe8d0;
+
+  /* Variables ajustables via JS */
+  --ui-opacity: 0.85;
+}
+
+/* Mode blanc (désactivé par défaut, basculable) */
+body.white-mode {
+  --night-red: #1a3a6b;
+  --night-red-dim: #0d1f40;
+  --night-red-bright: #2563eb;
+  --bg-panel: #0a0f1a;
+  --bg-panel-border: #1e3a5f;
+  --text-primary: #60a5fa;
+  --text-secondary: #3b82f6;
+  --text-dim: #1d4ed8;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-deep);
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--text-primary);
+  touch-action: none;
+}
+
+/* ========== Canvas ========== */
+#sky-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  display: block;
+}
+
+/* ========== Écran de chargement ========== */
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.8s ease;
+}
+
+#loading-screen.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-content {
+  text-align: center;
+  color: var(--night-red);
+}
+
+.loading-logo {
+  font-size: 4rem;
+  animation: pulse 2s ease-in-out infinite;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.loading-title {
+  font-size: 1.8rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+  color: var(--night-red-bright);
+}
+
+.loading-sub {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.1em;
+}
+
+.loading-bar {
+  width: 200px;
+  height: 2px;
+  background: var(--night-red-dim);
+  border-radius: 2px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.loading-progress {
+  height: 100%;
+  width: 0%;
+  background: var(--night-red);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ========== Barre du haut ========== */
+#top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  background: linear-gradient(to bottom, rgba(10,0,5,0.9) 0%, transparent 100%);
+  z-index: 100;
+  pointer-events: auto;
+}
+
+#location-info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+#location-icon {
+  color: var(--night-red);
+  font-size: 0.9rem;
+}
+
+#time-display {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  letter-spacing: 0.08em;
+}
+
+/* ========== Boutons ========== */
+.icon-btn {
+  background: rgba(13, 0, 5, 0.7);
+  border: 1px solid var(--bg-panel-border);
+  color: var(--text-primary);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.icon-btn:hover, .icon-btn:active {
+  background: var(--night-red-dim);
+  color: var(--star-white);
+}
+
+/* ========== Contrôles de zoom ========== */
+#zoom-controls {
+  position: fixed;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 100;
+}
+
+#zoom-controls .icon-btn {
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+/* ========== Filtres ========== */
+#filter-controls {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.6rem;
+  z-index: 100;
+  background: rgba(10, 0, 5, 0.7);
+  padding: 0.5rem 0.8rem;
+  border-radius: 2rem;
+  border: 1px solid var(--bg-panel-border);
+}
+
+.filter-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-btn.active {
+  color: var(--night-red-bright);
+  border-color: var(--night-red-dim);
+  background: rgba(122, 26, 16, 0.2);
+}
+
+.filter-btn:hover {
+  color: var(--text-primary);
+}
+
+/* ========== Panneau d'info objet ========== */
+#info-panel {
+  position: fixed;
+  bottom: 5.5rem;
+  left: 1rem;
+  right: 1rem;
+  max-width: 420px;
+  margin: 0 auto;
+  background: rgba(10, 0, 5, 0.92);
+  border: 1px solid var(--bg-panel-border);
+  border-radius: 1rem;
+  padding: 1rem 1.2rem;
+  z-index: 200;
+  backdrop-filter: blur(8px);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+#info-panel.hidden {
+  transform: translateY(2rem);
+  opacity: 0;
+  pointer-events: none;
+}
+
+#info-close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+}
+
+#info-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.3rem;
+}
+
+#info-name {
+  font-size: 1.2rem;
+  color: var(--night-red-bright);
+  margin-bottom: 0.2rem;
+}
+
+#info-type {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.6rem;
+}
+
+#info-details {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  line-height: 1.7;
+}
+
+#info-details span {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+#info-coords {
+  margin-top: 0.6rem;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  border-top: 1px solid var(--bg-panel-border);
+  padding-top: 0.5rem;
+}
+
+/* ========== Panneau de paramètres ========== */
+#settings-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(320px, 90vw);
+  background: rgba(10, 0, 5, 0.97);
+  border-left: 1px solid var(--bg-panel-border);
+  z-index: 300;
+  padding: 1rem;
+  overflow-y: auto;
+  transition: transform 0.3s ease;
+}
+
+#settings-panel.hidden {
+  transform: translateX(100%);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--bg-panel-border);
+}
+
+.settings-header h2 {
+  font-size: 1rem;
+  color: var(--night-red-bright);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.settings-section {
+  margin-bottom: 1.2rem;
+}
+
+.settings-section label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.settings-section input[type="range"] {
+  width: 100%;
+  accent-color: var(--night-red);
+  cursor: pointer;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle-row label:first-child {
+  margin-bottom: 0;
+}
+
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--night-red-dim);
+  border-radius: 24px;
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: var(--text-dim);
+  border-radius: 50%;
+  top: 3px;
+  left: 3px;
+  transition: 0.3s;
+}
+
+.toggle input:checked + .toggle-slider {
+  background: var(--night-red);
+}
+
+.toggle input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+  background: var(--star-white);
+}
+
+.settings-info {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-top: 0.3rem;
+}
+
+/* ========== Overlay ========== */
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 250;
+  transition: opacity 0.3s;
+}
+
+#overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ========== Erreur GPS ========== */
+#gps-error {
+  position: fixed;
+  bottom: 6rem;
+  left: 1rem;
+  right: 1rem;
+  background: rgba(40, 5, 0, 0.95);
+  border: 1px solid var(--night-red-dim);
+  border-radius: 0.8rem;
+  padding: 0.8rem 1rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  z-index: 150;
+  text-align: center;
+}
+
+#gps-error p { margin-bottom: 0.3rem; }
+
+#gps-retry {
+  margin-top: 0.5rem;
+  background: var(--night-red-dim);
+  border: 1px solid var(--night-red);
+  color: var(--text-primary);
+  padding: 0.4rem 1rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+/* ========== Boussole ========== */
+#compass {
+  position: fixed;
+  top: 4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 80px;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.35;
+}
+
+.compass-n, .compass-e, .compass-s, .compass-w {
+  position: absolute;
+  font-size: 0.65rem;
+  color: var(--night-red);
+  font-weight: bold;
+}
+.compass-n { top: 0; left: 50%; transform: translateX(-50%); }
+.compass-s { bottom: 0; left: 50%; transform: translateX(-50%); }
+.compass-e { right: 0; top: 50%; transform: translateY(-50%); }
+.compass-w { left: 0; top: 50%; transform: translateY(-50%); }
+
+/* ========== Animations ========== */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.9); }
+}
+
+/* ========== Scrollbar nuit ========== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--night-red-dim); border-radius: 4px; }

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0005" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AstroMate" />
+  <meta name="description" content="Carte du ciel nocturne interactive — étoiles, constellations, objets Messier" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <title>AstroMate — Carte du ciel</title>
+</head>
+<body>
+  <!-- Overlay de chargement -->
+  <div id="loading-screen">
+    <div class="loading-content">
+      <div class="loading-logo">✦</div>
+      <p class="loading-title">AstroMate</p>
+      <p class="loading-sub">Initialisation du ciel...</p>
+      <div class="loading-bar"><div class="loading-progress" id="loading-progress"></div></div>
+    </div>
+  </div>
+
+  <!-- Canvas principal -->
+  <canvas id="sky-canvas"></canvas>
+
+  <!-- Barre du haut -->
+  <header id="top-bar">
+    <div id="location-info">
+      <span id="location-icon">◎</span>
+      <span id="location-text">Localisation...</span>
+    </div>
+    <div id="time-display"></div>
+    <button id="btn-settings" class="icon-btn" title="Paramètres">⚙</button>
+  </header>
+
+  <!-- Contrôles de zoom -->
+  <div id="zoom-controls">
+    <button id="btn-zoom-in" class="icon-btn">+</button>
+    <button id="btn-zoom-out" class="icon-btn">−</button>
+    <button id="btn-reset-view" class="icon-btn" title="Réinitialiser">⌂</button>
+  </div>
+
+  <!-- Boutons de filtres -->
+  <div id="filter-controls">
+    <button class="filter-btn active" data-filter="stars" title="Étoiles">★</button>
+    <button class="filter-btn active" data-filter="constellations" title="Constellations">⊞</button>
+    <button class="filter-btn active" data-filter="messier" title="Objets Messier">◎</button>
+    <button class="filter-btn active" data-filter="labels" title="Noms">Aa</button>
+    <button class="filter-btn" data-filter="grid" title="Grille céleste">⊕</button>
+  </div>
+
+  <!-- Panneau d'information d'un objet sélectionné -->
+  <div id="info-panel" class="hidden">
+    <button id="info-close" class="icon-btn">✕</button>
+    <div id="info-icon"></div>
+    <div id="info-name"></div>
+    <div id="info-type"></div>
+    <div id="info-details"></div>
+    <div id="info-coords"></div>
+  </div>
+
+  <!-- Panneau de paramètres -->
+  <div id="settings-panel" class="hidden">
+    <div class="settings-header">
+      <h2>Paramètres</h2>
+      <button id="settings-close" class="icon-btn">✕</button>
+    </div>
+    <div class="settings-section">
+      <label>Magnitude limite <span id="mag-value">6.5</span></label>
+      <input type="range" id="mag-limit" min="1" max="7" step="0.5" value="6.5" />
+    </div>
+    <div class="settings-section">
+      <label>Luminosité de l'interface</label>
+      <input type="range" id="ui-brightness" min="10" max="80" step="5" value="30" />
+    </div>
+    <div class="settings-section toggle-row">
+      <label>Mode rouge nuit</label>
+      <label class="toggle">
+        <input type="checkbox" id="red-mode" checked />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="settings-section toggle-row">
+      <label>Afficher la Voie Lactée</label>
+      <label class="toggle">
+        <input type="checkbox" id="show-milkyway" checked />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="settings-section">
+      <p class="settings-info">Données : Catalogue HYG · Messier · IAU 2022</p>
+      <p class="settings-info" id="star-count-info">Chargement du catalogue…</p>
+    </div>
+  </div>
+
+  <!-- Overlay fond pour fermer les panneaux -->
+  <div id="overlay" class="hidden"></div>
+
+  <!-- Message d'erreur GPS -->
+  <div id="gps-error" class="hidden">
+    <p>⚠ Impossible d'obtenir la position GPS.</p>
+    <p>La carte utilise une position par défaut (Paris, France).</p>
+    <button id="gps-retry">Réessayer</button>
+  </div>
+
+  <!-- Indicateur de boussole -->
+  <div id="compass">
+    <span class="compass-n">N</span>
+    <span class="compass-e">E</span>
+    <span class="compass-s">S</span>
+    <span class="compass-w">O</span>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
