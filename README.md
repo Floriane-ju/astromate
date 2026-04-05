@@ -1,6 +1,6 @@
 # AstroMate
 
-**Version actuelle : v1.2.1**
+**Version actuelle : v1.2.2**
 
 Carte du ciel nocturne interactive — PWA mobile-first conçue pour l'observation astronomique en préservant la vision nocturne.
 
@@ -25,6 +25,7 @@ Carte du ciel nocturne interactive — PWA mobile-first conçue pour l'observati
 
 | Version | Description |
 |---------|-------------|
+| v1.2.2  | Suppression ligne rouge droite · Dézoom jusqu'à 300° |
 | v1.2.1  | Suppression ligne rouge bas d'écran · Dézoom étendu (fovMax 175°) |
 | v1.2.0  | Projection stéréographique — horizon courbé style Stellarium |
 | v1.1.3  | Horizon réellement calculé et visible à l'écran |

@@ -76,11 +76,13 @@ export class SkyRenderer {
     const ctx = this.ctx;
     const pts = [];
 
-    for (let daz = -88; daz <= 88; daz += 2) {
+    // Échantillonner ±179° d'azimut pour que la courbe atteigne les bords du canvas
+    // même à grand champ (FOV élevé). Les points hors-écran en x sont autorisés
+    // pour éviter les segments horizontaux parasites dans le path de remplissage.
+    for (let daz = -179; daz <= 179; daz += 2) {
       const az = ((viewAz + daz) % 360 + 360) % 360;
       const p  = project(az, 0, this.cx, this.cy, this.width, viewAz, viewAlt, fovDeg);
-      // Garder les points proches de l'écran (pas les extremes qui partent à l'infini)
-      if (p && p.x > -300 && p.x < this.width + 300 && p.y < this.height + 5) {
+      if (p && p.x > -this.width * 2 && p.x < this.width * 3 && p.y < this.height + 5) {
         pts.push({ x: p.x, y: p.y });
       }
     }
@@ -106,12 +108,12 @@ export class SkyRenderer {
     }
 
     // ── Remplissage du sol sous la courbe d'horizon
+    // On part du bas sous pts[0] et on descend sous pts[last] pour éviter
+    // tout segment horizontal parasite au niveau de pts[0].y / pts[last].y.
     ctx.beginPath();
-    ctx.moveTo(-10, this.height + 10);         // coin bas-gauche
-    ctx.lineTo(-10, pts[0].y);                 // monter jusqu'à la courbe côté gauche
+    ctx.moveTo(pts[0].x, this.height + 10);    // bas sous le premier point
     for (const p of pts) ctx.lineTo(p.x, p.y); // suivre la courbe
-    ctx.lineTo(this.width + 10, pts[pts.length - 1].y); // descendre côté droit
-    ctx.lineTo(this.width + 10, this.height + 10);       // coin bas-droit
+    ctx.lineTo(pts[pts.length - 1].x, this.height + 10); // bas sous le dernier point
     ctx.closePath();
     ctx.fillStyle = COLORS.ground;
     ctx.fill();

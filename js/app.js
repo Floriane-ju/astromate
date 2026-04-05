@@ -23,7 +23,7 @@ const state = {
   viewAlt:  30,   // sera recalculé dynamiquement après resize()
   fovDeg:   90,   // champ de vision horizontal
   fovMin:    8,
-  fovMax:  175,
+  fovMax:  300,
 
   // Catalogues
   allStars:       [],
