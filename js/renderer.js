@@ -62,56 +62,67 @@ export class SkyRenderer {
   // ── Horizon + sol ─────────────────────────────────────────────────────────────
 
   /**
-   * Dessine la ligne d'horizon (droite en projection gnomonique) et remplit le sol dessous.
-   * On projette alt=0 tous les 3° d'azimut, on trie par x et on trace la courbe.
+   * L'horizon (alt=0) est un grand cercle → projection gnomonique = ligne droite.
+   * On projette 2 points bien séparés en azimut pour déterminer la pente,
+   * puis on extrapole jusqu'aux bords du canvas — même si l'horizon est hors-écran.
    */
   drawLandscape(viewAz, viewAlt, fovDeg) {
     const ctx = this.ctx;
-    const pts = [];
 
-    for (let az = 0; az < 360; az += 3) {
-      const p = project(az, 0, this.cx, this.cy, this.width, viewAz, viewAlt, fovDeg);
-      if (p) pts.push({ x: p.x, y: p.y });
+    // 2 points sur l'horizon à 90° de part et d'autre de la direction de visée
+    const pL = project((viewAz - 85 + 360) % 360, 0, this.cx, this.cy, this.width, viewAz, viewAlt, fovDeg);
+    const pR = project((viewAz + 85)        % 360, 0, this.cx, this.cy, this.width, viewAz, viewAlt, fovDeg);
+
+    // Si les deux points sont derrière le spectateur, l'horizon n'est pas visible
+    if (!pL && !pR) return;
+
+    // Calcul de la droite y = a*x + b passant par les points disponibles
+    let yLeft, yRight;
+
+    if (pL && pR) {
+      // Cas normal : 2 points → pente exacte
+      const slope = (pR.y - pL.y) / (pR.x - pL.x || 1);
+      yLeft  = pL.y - pL.x * slope;           // x=0
+      yRight = pR.y + (this.width - pR.x) * slope; // x=width
+    } else {
+      // Un seul point visible (vue très rasante) → horizon horizontal au y connu
+      const p = pL || pR;
+      yLeft  = p.y;
+      yRight = p.y;
     }
 
-    if (pts.length === 0) {
-      // Horizon entièrement hors champ (on regarde très haut) → pas de sol visible
-      return;
-    }
+    // Si l'horizon est entièrement au-dessus de l'écran → tout est sol, ça ne devrait pas arriver
+    // Si l'horizon est entièrement en-dessous → pas de sol à dessiner
+    if (yLeft > this.height + 200 && yRight > this.height + 200) return;
 
-    // Trier par x pour avoir une courbe continue de gauche à droite
-    pts.sort((a, b) => a.x - b.x);
+    // Clamp pour ne pas dessiner des milliers de pixels hors-écran
+    const clamp = (v) => Math.max(-50, Math.min(this.height + 50, v));
+    yLeft  = clamp(yLeft);
+    yRight = clamp(yRight);
 
-    // Étendre aux bords du canvas
-    const margin = 20;
-    const leftPt  = { x: -margin, y: pts[0].y  + (pts[0].x  - (-margin))  * 0 };
-    const rightPt = { x: this.width + margin, y: pts[pts.length-1].y };
-
-    // Remplissage du sol (sous l'horizon)
+    // ─ Sol (zone sous la ligne d'horizon)
     ctx.beginPath();
-    ctx.moveTo(-margin, this.height + margin);
-    ctx.lineTo(leftPt.x, leftPt.y);
-    for (const p of pts) ctx.lineTo(p.x, p.y);
-    ctx.lineTo(rightPt.x, rightPt.y);
-    ctx.lineTo(this.width + margin, this.height + margin);
+    ctx.moveTo(0,          this.height + 10);
+    ctx.lineTo(0,          yLeft);
+    ctx.lineTo(this.width, yRight);
+    ctx.lineTo(this.width, this.height + 10);
     ctx.closePath();
     ctx.fillStyle = COLORS.ground;
     ctx.fill();
 
-    // Dégradé atmosphérique au-dessus de l'horizon (lueur)
-    const horizonY = pts[Math.floor(pts.length / 2)]?.y ?? this.cy;
-    const glowGrad = ctx.createLinearGradient(0, horizonY - 60, 0, horizonY + 30);
+    // ─ Lueur atmosphérique au niveau de l'horizon
+    const horizonMidY = (yLeft + yRight) / 2;
+    const glowGrad = ctx.createLinearGradient(0, horizonMidY - 60, 0, horizonMidY + 20);
     glowGrad.addColorStop(0,   'transparent');
-    glowGrad.addColorStop(0.5, COLORS.horizonGlow);
+    glowGrad.addColorStop(0.6, COLORS.horizonGlow);
     glowGrad.addColorStop(1,   'transparent');
     ctx.fillStyle = glowGrad;
-    ctx.fillRect(0, horizonY - 60, this.width, 90);
+    ctx.fillRect(0, horizonMidY - 60, this.width, 80);
 
-    // Ligne d'horizon
+    // ─ Ligne d'horizon
     ctx.beginPath();
-    ctx.moveTo(leftPt.x, leftPt.y);
-    for (const p of pts) ctx.lineTo(p.x, p.y);
-    ctx.lineTo(rightPt.x, rightPt.y);
+    ctx.moveTo(0,          yLeft);
+    ctx.lineTo(this.width, yRight);
     ctx.strokeStyle = COLORS.horizonLine;
     ctx.lineWidth = 1;
     ctx.stroke();

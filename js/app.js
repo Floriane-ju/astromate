@@ -20,7 +20,7 @@ const state = {
 
   // Direction de vue (caméra)
   viewAz:  180,   // regarder vers le Sud par défaut
-  viewAlt:  45,   // à 45° de hauteur
+  viewAlt:  30,   // à 30° — horizon visible en bas de l'écran
   fovDeg:   90,   // champ de vision horizontal
   fovMin:    8,
   fovMax:  170,
@@ -311,7 +311,7 @@ function adjustFov(factor) {
 
 function resetView() {
   state.viewAz  = 180;
-  state.viewAlt = 45;
+  state.viewAlt = 30;
   state.fovDeg  = 90;
 }
 
