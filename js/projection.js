@@ -1,75 +1,87 @@
 /**
- * projection.js — Projection azimutale équidistante
+ * projection.js — Projection gnomonique (perspective)
  *
- * Le zénith (altitude 90°) est au centre du canvas.
- * L'horizon (altitude 0°) est sur le bord du disque céleste.
- * Le plan de projection est : Nord en haut, Est à droite.
+ * On simule une caméra posée sur l'observateur, pointant vers
+ * (viewAz, viewAlt). La projection est identique à Stellarium :
+ * — L'horizon est une ligne droite quand viewAlt ≈ 0°
+ * — Le zénith est un point au-dessus du centre quand viewAlt < 90°
+ * — Les grands cercles (constellations) restent des lignes droites
  *
- * Cette projection est la plus naturelle pour une carte "vue du dessus"
- * car elle conserve les distances angulaires depuis le zénith.
+ * Formule : projection gnomonique sur un plan tangent
+ * à la sphère au point de visée.
  */
+
+const DEG = Math.PI / 180;
 
 /**
- * Convertit (azimuth, altitude) → (x, y) sur le canvas
+ * Projette (az, alt) → (x, y) écran
  *
- * @param {number} azimuth   — Azimut (°, Nord=0, Est=90, Sud=180, Ouest=270)
- * @param {number} altitude  — Altitude (°, 0 = horizon, 90 = zénith)
- * @param {number} cx        — Centre X du canvas (pixels)
- * @param {number} cy        — Centre Y du canvas (pixels)
- * @param {number} radius    — Rayon du disque céleste (pixels)
- * @param {number} zoomFactor — Facteur de zoom (>1 = zoom in)
- * @param {number} panX      — Décalage horizontal de vue (pixels)
- * @param {number} panY      — Décalage vertical de vue (pixels)
- * @returns {{ x: number, y: number, r: number }} — position + rayon depuis centre
+ * @param {number} az       — Azimut de l'objet (°)
+ * @param {number} alt      — Altitude de l'objet (°)
+ * @param {number} cx       — Centre X canvas
+ * @param {number} cy       — Centre Y canvas
+ * @param {number} width    — Largeur canvas (pour calculer la focale)
+ * @param {number} viewAz   — Azimut de la direction de visée (°)
+ * @param {number} viewAlt  — Altitude de la direction de visée (°)
+ * @param {number} fovDeg   — Champ de vision horizontal (°)
+ * @returns {{ x, y, cosC } | null}  — null si derrière le spectateur
  */
-export function project(azimuth, altitude, cx, cy, radius, zoomFactor = 1, panX = 0, panY = 0) {
-  // Distance angulaire depuis le zénith (0° au centre, 90° au bord)
-  const zenithDist = 90 - altitude;
+export function project(az, alt, cx, cy, width, viewAz, viewAlt, fovDeg) {
+  const φ  = alt    * DEG;
+  const φ0 = viewAlt * DEG;
 
-  // Rayon dans la projection (linéaire avec la distance zénithale)
-  const r = (zenithDist / 90) * radius * zoomFactor;
+  // Différence d'azimut normalisée dans (-180°, 180°]
+  let daz = az - viewAz;
+  while (daz >  180) daz -= 360;
+  while (daz < -180) daz += 360;
+  const Δλ = daz * DEG;
 
-  // Convention : Nord en haut → azimut 0° pointe vers le haut (-Y)
-  //               azimut 90° (Est) pointe vers la droite (+X)
-  const azRad = (azimuth - 180) * Math.PI / 180;
+  // cos de la distance angulaire depuis le centre de vue
+  const cosC = Math.sin(φ0) * Math.sin(φ)
+             + Math.cos(φ0) * Math.cos(φ) * Math.cos(Δλ);
 
-  const x = cx + r * Math.sin(azimuth * Math.PI / 180) + panX;
-  const y = cy - r * Math.cos(azimuth * Math.PI / 180) + panY;
+  // Derrière le spectateur → ne pas afficher
+  if (cosC < 0.001) return null;
 
-  return { x, y, r };
+  // Focale en pixels : f = (w/2) / tan(fov/2)
+  const f = (width / 2) / Math.tan((fovDeg / 2) * DEG);
+
+  const x = cx + f * (Math.cos(φ) * Math.sin(Δλ)) / cosC;
+  const y = cy - f * (Math.cos(φ0) * Math.sin(φ) - Math.sin(φ0) * Math.cos(φ) * Math.cos(Δλ)) / cosC;
+
+  return { x, y, cosC };
 }
 
 /**
- * Inverse : (x, y) canvas → (azimuth, altitude)
- * Utile pour détecter un clic sur un objet
+ * Inverse : (screenX, screenY) → (az, alt)
+ * Utilisé pour détecter un clic
  */
-export function unproject(x, y, cx, cy, radius, zoomFactor = 1, panX = 0, panY = 0) {
-  const dx = x - cx - panX;
-  const dy = y - cy - panY;
-  const r = Math.sqrt(dx * dx + dy * dy);
+export function unproject(screenX, screenY, cx, cy, width, viewAz, viewAlt, fovDeg) {
+  const φ0 = viewAlt * DEG;
+  const f  = (width / 2) / Math.tan((fovDeg / 2) * DEG);
 
-  const zenithDist = (r / (radius * zoomFactor)) * 90;
-  const altitude = 90 - zenithDist;
+  const xn =  (screenX - cx) / f;
+  const yn = -(screenY - cy) / f;  // axe Y inversé
 
-  let azimuth = Math.atan2(dx, -dy) * 180 / Math.PI;
-  if (azimuth < 0) azimuth += 360;
+  const ρ = Math.sqrt(xn * xn + yn * yn);
+  if (ρ < 1e-10) return { az: viewAz, alt: viewAlt };
 
-  return { azimuth, altitude };
+  const c    = Math.atan(ρ);
+  const sinC = Math.sin(c);
+  const cosC = Math.cos(c);
+
+  const sinφ = cosC * Math.sin(φ0) + (yn * sinC * Math.cos(φ0)) / ρ;
+  const alt  = Math.asin(Math.max(-1, Math.min(1, sinφ))) / DEG;
+
+  const Δλ = Math.atan2(xn * sinC, ρ * Math.cos(φ0) * cosC - yn * Math.sin(φ0) * sinC);
+  const az  = ((viewAz + Δλ / DEG) % 360 + 360) % 360;
+
+  return { az, alt };
 }
 
 /**
- * Vérifie si un point (x,y) est dans le disque céleste affiché
+ * Focale en pixels (utile pour convertir arcmin → pixels)
  */
-export function isInsideSkyDisk(x, y, cx, cy, radius, zoomFactor = 1, panX = 0, panY = 0) {
-  const dx = x - cx - panX;
-  const dy = y - cy - panY;
-  return Math.sqrt(dx * dx + dy * dy) <= radius * zoomFactor;
-}
-
-/**
- * Calcule le rayon du disque céleste selon la taille du canvas
- * Utilise 90% du plus petit demi-côté pour laisser une marge
- */
-export function computeSkyRadius(canvasW, canvasH) {
-  return Math.min(canvasW, canvasH) * 0.46;
+export function focalLength(width, fovDeg) {
+  return (width / 2) / Math.tan((fovDeg / 2) * DEG);
 }

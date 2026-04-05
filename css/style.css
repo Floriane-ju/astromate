@@ -469,29 +469,8 @@ html, body {
   font-family: inherit;
 }
 
-/* ========== Boussole ========== */
-#compass {
-  position: fixed;
-  top: 4rem;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
-  height: 80px;
-  pointer-events: none;
-  z-index: 10;
-  opacity: 0.35;
-}
-
-.compass-n, .compass-e, .compass-s, .compass-w {
-  position: absolute;
-  font-size: 0.65rem;
-  color: var(--night-red);
-  font-weight: bold;
-}
-.compass-n { top: 0; left: 50%; transform: translateX(-50%); }
-.compass-s { bottom: 0; left: 50%; transform: translateX(-50%); }
-.compass-e { right: 0; top: 50%; transform: translateY(-50%); }
-.compass-w { left: 0; top: 50%; transform: translateY(-50%); }
+/* Boussole masquée (remplacée par l'indicateur en bas du canvas) */
+#compass { display: none; }
 
 /* ========== Animations ========== */
 @keyframes pulse {
