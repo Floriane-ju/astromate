@@ -151,7 +151,7 @@ html, body {
 
 #version-badge {
   font-size: 0.65rem;
-  color: var(--text-dim);
+  color: var(--text-secondary);
   letter-spacing: 0.05em;
   margin-right: 0.5rem;
 }
