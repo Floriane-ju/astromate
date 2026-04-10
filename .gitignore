@@ -1,7 +1,0 @@
-# Développement
-.DS_Store
-node_modules/
-*.log
-
-# Fichier temporaire de génération d'icônes
-generate-icons.html
